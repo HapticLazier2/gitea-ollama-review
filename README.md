@@ -239,6 +239,43 @@ models trade the reverse.
 - [ ] Skip review on trivial changes (e.g. docs-only, formatting-only diffs).
 - [ ] Cache/reuse context across commits on the same PR instead of a full re-review each push.
 
+## Related projects
+
+This isn't the only take on self-hosted AI review for Gitea — worth
+checking these out too, in case one fits your needs better:
+
+- **[kekxv/AiReviewPR](https://github.com/kekxv/AiReviewPR)** — the
+  closest existing match: Gitea Actions + Ollama, same core idea as this
+  repo.
+- **[ccsert/opencode-review-gitea](https://github.com/ccsert/opencode-review-gitea)** —
+  a full agent framework (TypeScript, Docker or source install) with
+  line-level inline comments and multiple LLM backends including Ollama.
+- **[TerraScan](https://spaceterran.com/posts/terrascan-self-hosted-ai-code-review-gitea/)** —
+  runs as a Docker container via Gitea Actions, supports Ollama plus
+  cloud providers, posts inline comments.
+- **[Self-Hosted AI Code Review Bot](https://dev.to/signal-weekly/build-a-self-hosted-ai-code-review-bot-with-ollama-and-gitea-webhooks-592p)** —
+  same goal, different trigger: a standing Python/Flask service driven
+  by Gitea **webhooks** rather than Actions, Docker Compose stack.
+- **[AI Gitea Bot](https://forum.gitea.com/t/ai-gitea-bot-open-source-ai-powered-code-reviews-for-your-self-hosted-gitea/12030)** —
+  a persistent Spring Boot service (Docker image) with Ollama support
+  and inline reply-in-context.
+- **[Nikita-Filonov/ai-review](https://github.com/Nikita-Filonov/ai-review)** —
+  general-purpose multi-provider review tool covering GitHub, GitLab,
+  Bitbucket, Azure DevOps, and Gitea, not Gitea-specific.
+- **[Gitea + Claude](https://gmcd.dev/blog/self-hosted-ai-code-reviews-gitea-claude/)** —
+  same Gitea Actions approach, cloud-based (Claude) rather than local
+  inference.
+
+**What's different here:** no Docker, no Node/Python/Spring runtime, no
+agent framework — a single workflow file using plain `git`/`curl`/`jq`
+against Ollama's HTTP API, on a host-only `act_runner`. Every project
+above needs at least one of Docker, a language runtime, or a standing
+service. If you want the smallest possible dependency footprint and are
+fine with a single summary comment instead of inline line-level
+comments, this is the tradeoff this repo makes; if you want richer
+review output and don't mind the extra moving parts, one of the above
+may suit you better.
+
 ## Acknowledgments
 
 - [Ollama](https://ollama.com) for local model serving.
