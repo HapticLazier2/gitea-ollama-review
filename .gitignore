@@ -1,0 +1,28 @@
+# Data (downloaded by data.py, not committed)
+data/
+
+# Training outputs: checkpoints, sample grids, logs
+runs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editor / OS cruft
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Misc local artifacts
+*.log
+*.png
+!docs/**/*.png
