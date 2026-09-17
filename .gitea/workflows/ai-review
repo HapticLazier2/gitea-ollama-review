@@ -1,0 +1,53 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch PR diff
+        env:
+          GITEA_URL: ${{ gitea.server_url }}
+          REPO: ${{ gitea.repository }}
+          PR_NUMBER: ${{ gitea.event.pull_request.number }}
+          BASE_REF: ${{ gitea.event.pull_request.base.ref }}
+        run: |
+          set -e
+          WORKDIR=$(mktemp -d)
+          git clone --quiet "$GITEA_URL/$REPO.git" "$WORKDIR/repo"
+          cd "$WORKDIR/repo"
+          git fetch --quiet origin "pull/${PR_NUMBER}/head:pr-head" "$BASE_REF"
+          git diff "origin/${BASE_REF}...pr-head" > "$WORKDIR/pr.diff"
+          echo "WORKDIR=$WORKDIR" >> "$GITHUB_ENV"
+
+      - name: Run local AI review
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITEA_URL: ${{ gitea.server_url }}
+          REPO: ${{ gitea.repository }}
+          PR_NUMBER: ${{ gitea.event.pull_request.number }}
+        run: |
+          set -e
+          DIFF_CONTENT=$(head -c 12000 "$WORKDIR/pr.diff")
+
+          PROMPT=$(printf 'You are a senior code reviewer. Review the following pull request diff. Call out real bugs, security issues, and correctness problems. Ignore purely stylistic nitpicks. Keep the review under 300 words, plain prose, no headers.\n\nDiff:\n%s' "$DIFF_CONTENT")
+
+          PAYLOAD=$(jq -n --arg model "qwen2.5-coder:7b" --arg prompt "$PROMPT" \
+            '{model: $model, prompt: $prompt, stream: false}')
+
+          RESPONSE=$(curl -s http://localhost:11434/api/generate \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.response')
+
+          COMMENT_BODY=$(jq -n --arg body "$(printf '**🤖 AI Review (qwen2.5-coder:7b)**\n\n%s' "$REVIEW_TEXT")" '{body: $body}')
+
+          curl -s -X POST \
+            -H "Authorization: token $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$COMMENT_BODY" \
+            "$GITEA_URL/api/v1/repos/$REPO/issues/$PR_NUMBER/comments"
