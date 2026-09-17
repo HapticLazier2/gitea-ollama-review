@@ -4,6 +4,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+env:
+  # Change these two to match what you pulled with `ollama pull` and the
+  # context window your hardware/model can comfortably handle.
+  MODEL: qwen2.5-coder:7b
+  DIFF_CHAR_LIMIT: 12000
+
 jobs:
   ai-review:
     runs-on: ubuntu-latest
@@ -31,11 +37,14 @@ jobs:
           PR_NUMBER: ${{ gitea.event.pull_request.number }}
         run: |
           set -e
-          DIFF_CONTENT=$(head -c 12000 "$WORKDIR/pr.diff")
+          DIFF_CONTENT=$(head -c "$DIFF_CHAR_LIMIT" "$WORKDIR/pr.diff")
 
-          PROMPT=$(printf 'You are a senior code reviewer. Review the following pull request diff. Call out real bugs, security issues, and correctness problems. Ignore purely stylistic nitpicks. Keep the review under 300 words, plain prose, no headers.\n\nDiff:\n%s' "$DIFF_CONTENT")
+          PROMPT="You are a senior code reviewer. Review the following pull request diff. Call out real bugs, security issues, and correctness problems. Ignore purely stylistic nitpicks. Keep the review under 300 words, plain prose, no headers.
 
-          PAYLOAD=$(jq -n --arg model "qwen2.5-coder:7b" --arg prompt "$PROMPT" \
+Diff:
+$DIFF_CONTENT"
+
+          PAYLOAD=$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" \
             '{model: $model, prompt: $prompt, stream: false}')
 
           RESPONSE=$(curl -s http://localhost:11434/api/generate \
@@ -44,7 +53,9 @@ jobs:
 
           REVIEW_TEXT=$(echo "$RESPONSE" | jq -r '.response')
 
-          COMMENT_BODY=$(jq -n --arg body "$(printf '**🤖 AI Review (qwen2.5-coder:7b)**\n\n%s' "$REVIEW_TEXT")" '{body: $body}')
+          COMMENT_BODY=$(jq -n --arg body "**🤖 AI Review ($MODEL)**
+
+$REVIEW_TEXT" '{body: $body}')
 
           curl -s -X POST \
             -H "Authorization: token $TOKEN" \
